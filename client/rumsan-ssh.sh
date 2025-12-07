@@ -3,9 +3,9 @@
 # Base URL for the repository
 BASE_URL="https://raw.githubusercontent.com/santosh-rumsan/rumsan-ssh-setup/refs/heads/main"
 
-# Create rs-ssh-app folder
-mkdir -p rs-ssh-app
-cd rs-ssh-app
+# Create rumsan-ssh-app folder
+mkdir -p rumsan-ssh-app
+cd rumsan-ssh-app
 
 # Download rs_client.sh
 curl -O ${BASE_URL}/client/rs_client.sh
