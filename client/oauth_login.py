@@ -20,7 +20,7 @@ SERVER_URL = "http://127.0.0.1:54321"
 RUMSAN_FOLDER_PATH = os.path.expanduser("~/.rumsan/.ssh")
 RUMSAN_SSH_ACCESS_FILE = os.path.join(RUMSAN_FOLDER_PATH, "ssh_access.sh")
 REDIRECT_URI = "http://localhost:29670/callback"
-GOOGLE_CLIENT_ID_URL = "https://gist.githubusercontent.com/santosh-rumsan/71616b6d03f1eba1abdbc36bb7207357/raw/0c1cc2ef37b24b51cec658625c37be15f5baf1fd/google-client-id"
+GOOGLE_CLIENT_ID_URL = "https://raw.githubusercontent.com/santosh-rumsan/rumsan-ssh-setup/refs/heads/main/static/client_id"
 
 # Global variables
 id_token = None
