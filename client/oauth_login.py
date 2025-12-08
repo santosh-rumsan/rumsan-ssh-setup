@@ -16,7 +16,7 @@ import base64
 from datetime import datetime
 
 # Configuration
-SERVER_URL = "http://127.0.0.1:54321"
+SERVER_URL = "https://ceamyckytvqemsjijavg.supabase.co"
 RUMSAN_FOLDER_PATH = os.path.expanduser("~/.rumsan/.ssh")
 RUMSAN_SSH_ACCESS_FILE = os.path.join(RUMSAN_FOLDER_PATH, "ssh_access.sh")
 REDIRECT_URI = "http://localhost:29670/callback"
