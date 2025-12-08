@@ -574,12 +574,17 @@ def show_server_selection_page(id_token, hosts):
                 host_list = [hosts] if hosts.get('name') or hosts.get('id') else []
                 print(f"[WARNING] Using hosts dict directly: {host_list}")
     
+    # Sort hosts alphabetically by display name (name [principal])
+    host_list = sorted(host_list, key=lambda h: f"{h.get('name', 'Unknown')} [{h.get('principal', 'Unknown')}]")
+    
     for host in host_list:
         if isinstance(host, dict):
             host_name = host.get('name', 'Unknown')
+            host_principal = host.get('principal', 'Unknown')
+            display_name = f"{host_name} [{host_principal}]"
             host_id = host.get('id', '')
-            print(f"  Adding option: {host_name} ({host_id})")
-            content += f'<option value="{host_id}">{host_name}</option>'
+            print(f"  Adding option: {display_name} ({host_id})")
+            content += f'<option value="{host_id}">{display_name}</option>'
     
     content += '</select><br><button type="submit">Connect</button></form><script>document.addEventListener("DOMContentLoaded", function() { const select = document.getElementById("serverSelect"); const options = select.querySelectorAll("option"); if (options.length === 2 && options[1].value) { select.value = options[1].value; } }); document.getElementById("serverForm").onsubmit = function(e) { e.preventDefault(); const selectedServer = document.getElementById("serverSelect").value; const selectElement = document.getElementById("serverSelect"); const selectedOption = selectElement.options[selectElement.selectedIndex]; const serverName = selectedOption.text; if (selectedServer) { document.body.innerHTML = "<div class=\\"container\\"><h1>Processing...</h1><p>Connecting to server and creating certificate...</p><div style=\\"margin-top: 20px;\\"><div style=\\"border: 4px solid #f3f3f3; border-top: 4px solid #4CAF50; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;\\"></div></div><style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style></div>"; fetch("/server-selected", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({server_id: selectedServer}) }).then(response => { if (response.ok) { document.body.innerHTML = "<div class=\\"container\\"><img src=\\"https://avatars.githubusercontent.com/u/102228984?s=1024&v=4\\" alt=\\"Rumsan Logo\\" class=\\"logo\\"><h1>&check; Server is Connected!</h1><h2>" + serverName + "</h2><p class=\\"info-text\\">For the next 7 days you can directly login to this server in terminal using:</p><div class=\\"code-block\\">ssh " + serverName + "</div><p class=\\"info-text\\">You can now close this window and return to the terminal.</p></div>"; } else { alert("Failed to select server. Please try again."); } }).catch(error => { console.error("Error:", error); alert("An error occurred. Please try again."); }); } };</script>'
     
