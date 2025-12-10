@@ -408,12 +408,12 @@ class CallbackHandler(BaseHTTPRequestHandler):
                         content = f.read()
                     
                     lines = content.split('\n')
-                    # Remove existing RS_SERVER_ID, RS_SERVER_PRINCIPAL, and RS_SERVER_NAME lines
-                    lines = [line for line in lines if not line.startswith('RS_SERVER_ID=') and not line.startswith('RS_SERVER_PRINCIPAL=') and not line.startswith('RS_SERVER_NAME=')]
+                    # Remove existing RS_HOST_ID, RS_HOST_PRINCIPAL, and RS_HOST_NAME lines
+                    lines = [line for line in lines if not line.startswith('RS_HOST_ID=') and not line.startswith('RS_HOST_PRINCIPAL=') and not line.startswith('RS_HOST_NAME=')]
                     # Add new lines
-                    lines.append(f'RS_SERVER_ID="{selected_server_id}"')
-                    lines.append(f'RS_SERVER_PRINCIPAL="{server_principal}"')
-                    lines.append(f'RS_SERVER_NAME="{server_name}"')
+                    lines.append(f'RS_HOST_ID="{selected_server_id}"')
+                    lines.append(f'RS_HOST_PRINCIPAL="{server_principal}"')
+                    lines.append(f'RS_HOST_NAME="{server_name}"')
                     new_content = '\n'.join(lines)
                     
                     with open(RUMSAN_SSH_ACCESS_FILE, 'w') as f:

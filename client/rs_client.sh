@@ -263,7 +263,7 @@ main() {
     if [ -f "$TMP_FILE_PATH" ]; then
         source "$TMP_FILE_PATH"
         
-        json_file="$RUMSAN_FOLDER_PATH/$RS_SERVER_ID.json"
+        json_file="$RUMSAN_FOLDER_PATH/$RS_HOST_ID.json"
         if [ -f "$json_file" ]; then
             # Parse JSON to get hostname, principal, and cloudflared
             hostname=$(python3 -c "import json; data=json.load(open('$json_file')); print(data['hosts']['name'])")
@@ -274,7 +274,7 @@ main() {
             private_key="${SSH_KEY_PATH%.pub}"
             
             # Certificate file path
-            cert_file="$RUMSAN_FOLDER_PATH/$RS_SERVER_ID.pub"
+            cert_file="$RUMSAN_FOLDER_PATH/$RS_HOST_ID.pub"
             
             # Add to rumsan ssh_config
             config_file="$RUMSAN_FOLDER_PATH/config"
