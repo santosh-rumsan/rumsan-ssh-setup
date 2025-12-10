@@ -125,6 +125,25 @@ install_python() {
     fi
 }
 
+# Ensure Python venv module is available (for Linux systems)
+ensure_venv() {
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Check if python3-venv is available
+        if ! $PYTHON_CMD -m venv --help &> /dev/null; then
+            log_warning "Python venv module not found. Installing python3-venv..."
+            if command -v apt-get &> /dev/null; then
+                # Extract Python version (e.g., python3.12)
+                PYTHON_VERSION=$($PYTHON_CMD --version | awk '{print $2}' | cut -d'.' -f1-2)
+                sudo apt-get update
+                sudo apt-get install -y python${PYTHON_VERSION}-venv
+            else
+                log_error "Could not install python venv. Please install it manually."
+                exit 1
+            fi
+        fi
+    fi
+}
+
 # Setup virtual environment
 setup_venv() {
     if [ ! -d "$VENV_DIR" ]; then
@@ -138,15 +157,43 @@ setup_venv() {
 setup_dependencies() {
     log_info "Setting up dependencies..."
     
-    # Activate virtual environment
-    source "$VENV_DIR/bin/activate"
+    # Check if venv exists and can be activated
+    if [ -f "$VENV_DIR/bin/activate" ]; then
+        # Activate virtual environment
+        source "$VENV_DIR/bin/activate" || {
+            log_warning "Could not activate virtual environment, using system Python"
+        }
+        VENV_PIP="$VENV_DIR/bin/pip"
+    else
+        log_warning "Virtual environment not fully set up, using system Python for pip"
+        VENV_PIP="pip3"
+    fi
     
     # Upgrade pip
-    pip install --upgrade pip > /dev/null 2>&1
+    if [ -f "$VENV_DIR/bin/pip" ]; then
+        "$VENV_DIR/bin/pip" install --upgrade pip > /dev/null 2>&1 || true
+    else
+        # Try to install pip if it's not available
+        if ! command -v pip3 &> /dev/null; then
+            log_warning "pip3 not found, attempting to install..."
+            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                if command -v apt-get &> /dev/null; then
+                    sudo apt-get update
+                    sudo apt-get install -y python3-pip
+                elif command -v dnf &> /dev/null; then
+                    sudo dnf install -y python3-pip
+                fi
+            fi
+        fi
+    fi
     
-    # Install required packages
+    # Install required packages using the appropriate pip
     log_info "Installing required Python packages..."
-    pip install requests > /dev/null 2>&1
+    if [ -f "$VENV_DIR/bin/pip" ]; then
+        "$VENV_DIR/bin/pip" install requests eciespy > /dev/null 2>&1 || log_warning "Some packages could not be installed via venv pip"
+    else
+        pip3 install --user requests eciespy > /dev/null 2>&1 || log_warning "Some packages could not be installed"
+    fi
     
     log_info "Dependencies installed successfully"
 }
@@ -156,7 +203,13 @@ encrypt_with_public_key() {
     local public_key="$1"
     local data="$2"
 
-    python3 -c "
+    # Use the virtual environment's Python if it exists
+    local PYTHON_TO_USE="$PYTHON_CMD"
+    if [ -f "$VENV_DIR/bin/python3" ]; then
+        PYTHON_TO_USE="$VENV_DIR/bin/python3"
+    fi
+
+    $PYTHON_TO_USE -c "
 import sys
 try:
     from ecies import encrypt
@@ -194,6 +247,10 @@ echo "Checking Python installation..."
 if ! check_python; then
     install_python
 fi
+
+# Ensure venv module is available (Linux systems may need python3-venv installed)
+echo "Checking Python venv module..."
+ensure_venv
 
 # Setup virtual environment
 echo "Setting up virtual environment..."
