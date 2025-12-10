@@ -12,9 +12,6 @@ META_FILE="$RUMSAN_PATH/meta.sh"
 
 BASE_URL="https://ceamyckytvqemsjijavg.supabase.co/functions/v1"
 
-# Virtual environment directory
-VENV_DIR="./venv"
-
 # ==========================================
 # Logging functions
 # ==========================================
@@ -125,77 +122,48 @@ install_python() {
     fi
 }
 
-# Ensure Python venv module is available (for Linux systems)
-ensure_venv() {
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Check if python3-venv is available
-        if ! $PYTHON_CMD -m venv --help &> /dev/null; then
-            log_warning "Python venv module not found. Installing python3-venv..."
+# Ensure pip3 and required packages are installed
+setup_dependencies() {
+    log_info "Setting up dependencies..."
+    
+    # Install pip3 if not available
+    if ! command -v pip3 &> /dev/null; then
+        log_warning "pip3 not found, installing..."
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
             if command -v apt-get &> /dev/null; then
-                # Extract Python version (e.g., python3.12)
-                PYTHON_VERSION=$($PYTHON_CMD --version | awk '{print $2}' | cut -d'.' -f1-2)
                 sudo apt-get update
-                sudo apt-get install -y python${PYTHON_VERSION}-venv
+                sudo apt-get install -y python3-pip
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y python3-pip
             else
-                log_error "Could not install python venv. Please install it manually."
+                log_error "Could not install pip3. Please install it manually."
+                exit 1
+            fi
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            if command -v brew &> /dev/null; then
+                brew install python3
+            else
+                log_error "Could not install pip3. Please install Homebrew or Python manually."
                 exit 1
             fi
         fi
     fi
-}
-
-# Setup virtual environment
-setup_venv() {
-    if [ ! -d "$VENV_DIR" ]; then
-        log_info "Creating virtual environment..."
-        $PYTHON_CMD -m venv "$VENV_DIR"
-        log_info "Virtual environment created"
-    fi
-}
-
-# Activate virtual environment and install dependencies
-setup_dependencies() {
-    log_info "Setting up dependencies..."
     
-    # Check if venv exists and can be activated
-    if [ -f "$VENV_DIR/bin/activate" ]; then
-        # Activate virtual environment
-        source "$VENV_DIR/bin/activate" || {
-            log_warning "Could not activate virtual environment, using system Python"
-        }
-        VENV_PIP="$VENV_DIR/bin/pip"
-    else
-        log_warning "Virtual environment not fully set up, using system Python for pip"
-        VENV_PIP="pip3"
-    fi
-    
-    # Upgrade pip
-    if [ -f "$VENV_DIR/bin/pip" ]; then
-        "$VENV_DIR/bin/pip" install --upgrade pip > /dev/null 2>&1 || true
-    else
-        # Try to install pip if it's not available
-        if ! command -v pip3 &> /dev/null; then
-            log_warning "pip3 not found, attempting to install..."
-            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-                if command -v apt-get &> /dev/null; then
-                    sudo apt-get update
-                    sudo apt-get install -y python3-pip
-                elif command -v dnf &> /dev/null; then
-                    sudo dnf install -y python3-pip
-                fi
-            fi
-        fi
-    fi
-    
-    # Install required packages using the appropriate pip
+    # Install required Python packages
     log_info "Installing required Python packages..."
-    if [ -f "$VENV_DIR/bin/pip" ]; then
-        "$VENV_DIR/bin/pip" install requests eciespy > /dev/null 2>&1 || log_warning "Some packages could not be installed via venv pip"
-    else
-        pip3 install --user requests eciespy > /dev/null 2>&1 || log_warning "Some packages could not be installed"
-    fi
     
-    log_info "Dependencies installed successfully"
+    # Try normal installation first
+    if pip3 install --user requests eciespy > /dev/null 2>&1; then
+        log_info "Dependencies installed successfully"
+    # If that fails due to PEP 668, try with --break-system-packages
+    elif pip3 install --user --break-system-packages requests eciespy > /dev/null 2>&1; then
+        log_info "Dependencies installed successfully (system packages mode)"
+    else
+        log_error "Failed to install dependencies. Please try manually:"
+        log_error "  pip3 install --user requests eciespy"
+        log_error "  OR: pip3 install --break-system-packages requests eciespy"
+        exit 1
+    fi
 }
 
 # Function to encrypt data with public key using ECIES
@@ -203,33 +171,27 @@ encrypt_with_public_key() {
     local public_key="$1"
     local data="$2"
 
-    # Use the virtual environment's Python if it exists
-    local PYTHON_TO_USE="$PYTHON_CMD"
-    if [ -f "$VENV_DIR/bin/python3" ]; then
-        PYTHON_TO_USE="$VENV_DIR/bin/python3"
-    fi
-
-    $PYTHON_TO_USE -c "
+    python3 -c "
 import sys
 try:
     from ecies import encrypt
-except ImportError:
-    print('Installing required packages...', file=sys.stderr)
-    import subprocess
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'eciespy'])
-    from ecies import encrypt
-
-public_key = '$public_key'
-data = '$data'
-
-# Remove 0x prefix and convert to bytes
-pub_bytes = bytes.fromhex(public_key.replace('0x', ''))
-
-# Encrypt the data
-encrypted = encrypt(pub_bytes, data.encode('utf-8'))
-
-# Return as hex string with 0x prefix
-print('0x' + encrypted.hex())
+    public_key = '$public_key'
+    data = '$data'
+    
+    # Remove 0x prefix and convert to bytes
+    pub_bytes = bytes.fromhex(public_key.replace('0x', ''))
+    
+    # Encrypt the data
+    encrypted = encrypt(pub_bytes, data.encode('utf-8'))
+    
+    # Return as hex string with 0x prefix
+    print('0x' + encrypted.hex())
+except ImportError as e:
+    print(f'Error: ecies module not found. Please ensure eciespy is installed.', file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f'Error during encryption: {e}', file=sys.stderr)
+    sys.exit(1)
 "
 }
 
@@ -247,14 +209,6 @@ echo "Checking Python installation..."
 if ! check_python; then
     install_python
 fi
-
-# Ensure venv module is available (Linux systems may need python3-venv installed)
-echo "Checking Python venv module..."
-ensure_venv
-
-# Setup virtual environment
-echo "Setting up virtual environment..."
-setup_venv
 
 # Setup dependencies
 echo "Installing dependencies..."

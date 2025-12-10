@@ -6,6 +6,26 @@ META_FILE="$RUMSAN_PATH/meta.sh"
 
 BASE_URL="https://ceamyckytvqemsjijavg.supabase.co/functions/v1"
 
+# Setup dependencies
+setup_dependencies() {
+    if ! python3 -c "from coincurve import PrivateKey; from eth_keys import keys" 2>/dev/null; then
+        echo "[INFO] Installing required Python packages..."
+        
+        # Try normal installation first
+        if pip3 install --user coincurve eth-keys > /dev/null 2>&1; then
+            echo "[INFO] Dependencies installed successfully"
+        # If that fails due to PEP 668, try with --break-system-packages
+        elif pip3 install --user --break-system-packages coincurve eth-keys > /dev/null 2>&1; then
+            echo "[INFO] Dependencies installed successfully (system packages mode)"
+        else
+            echo "[ERROR] Failed to install required packages:"
+            echo "[ERROR]   pip3 install --user coincurve eth-keys"
+            echo "[ERROR]   OR: pip3 install --break-system-packages coincurve eth-keys"
+            exit 1
+        fi
+    fi
+}
+
 # Function to read from meta
 read_meta() {
     local key=$1
@@ -25,12 +45,11 @@ import hashlib
 try:
     from coincurve import PrivateKey
     from eth_keys import keys
-except ImportError:
-    print('Installing required packages...', file=sys.stderr)
-    import subprocess
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'coincurve', 'eth-keys'])
-    from coincurve import PrivateKey
-    from eth_keys import keys
+except ImportError as e:
+    print(f'Error: Required packages not found. Please install them first:', file=sys.stderr)
+    print(f'  pip3 install --user coincurve eth-keys', file=sys.stderr)
+    print(f'  OR: pip3 install --break-system-packages coincurve eth-keys', file=sys.stderr)
+    sys.exit(1)
 
 private_key = '$private_key'
 timestamp = '$timestamp'
@@ -58,6 +77,9 @@ print(sig_hex)
 }
 
 # Get HOST_PRIVATE_KEY and HOST_ID from meta file
+echo "[INFO] Setting up dependencies..."
+setup_dependencies
+
 HOST_PRIVATE_KEY=$(read_meta "HOST_PRIVATE_KEY")
 HOST_ID=$(read_meta "HOST_ID")
 
