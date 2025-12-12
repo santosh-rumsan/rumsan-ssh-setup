@@ -32,5 +32,32 @@ fi
 chmod +x rs_setup_server.sh
 chmod +x ping.sh
 
+# Setup cron job for ping.sh to run every 30 minutes
+setup_ping_cron() {
+    local ping_script="$(pwd)/ping.sh"
+    local cron_temp=$(mktemp)
+    
+    # Get existing cron jobs
+    sudo crontab -l > "$cron_temp" 2>/dev/null || true
+    
+    # Check if the cron job already exists
+    if ! grep -q "*/30.*ping.sh" "$cron_temp"; then
+        # Add the new cron job (every 30 minutes)
+        echo "*/30 * * * * $ping_script > /dev/null 2>&1" >> "$cron_temp"
+        
+        # Install the updated crontab
+        sudo crontab "$cron_temp"
+        echo "[INFO] Cron job added: ping.sh will run every 30 minutes"
+    else
+        echo "[INFO] Cron job already exists for ping.sh"
+    fi
+    
+    # Clean up
+    rm "$cron_temp"
+}
+
+# Setup the cron job
+setup_ping_cron
+
 # Run rs_setup_server.sh
 ./rs_setup_server.sh
